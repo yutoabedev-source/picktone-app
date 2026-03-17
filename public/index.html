@@ -3,23 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>TuneBeat — Free Online Tuner & Metronome</title>
+<title>PickTone — Free Online Tuner & Metronome</title>
 <meta name="description" content="Free online chromatic tuner and metronome for musicians. Hardware-pedal-style UI with tap tempo, mute beats, and bilingual support (EN/JA). No install required.">
 <meta name="keywords" content="online tuner, online metronome, free chromatic tuner, chromatic tuner metronome, tap tempo, チューナー オンライン, メトロノーム オンライン, 無料 チューナー">
-<meta name="author" content="TuneBeat">
+<meta name="author" content="PickTone">
 <meta name="theme-color" content="#1a1a1a">
-<link rel="canonical" href="https://tunebeat.org/">
+<link rel="canonical" href="https://picktone.org/">
 <!-- OGP -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="TuneBeat — Free Online Tuner & Metronome">
+<meta property="og:title" content="PickTone — Free Online Tuner & Metronome">
 <meta property="og:description" content="Free online chromatic tuner and metronome for musicians. Hardware-pedal-style UI with tap tempo, mute beats, and bilingual support.">
-<meta property="og:url" content="https://tunebeat.org/">
-<meta property="og:site_name" content="TuneBeat">
+<meta property="og:url" content="https://picktone.org/">
+<meta property="og:site_name" content="PickTone">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="ja_JP">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="TuneBeat — Free Online Tuner & Metronome">
+<meta name="twitter:title" content="PickTone — Free Online Tuner & Metronome">
 <meta name="twitter:description" content="Free online chromatic tuner and metronome for musicians. Hardware-pedal-style UI with tap tempo and mute beats.">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
@@ -205,7 +205,7 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
 <div class="wrap">
   <!-- HEADER -->
   <div class="hdr">
-    <div class="brand"><em>◆</em> TUNEBEAT</div>
+    <div class="brand"><em>◆</em> PICKTONE</div>
     <div class="hdr-btns">
       <button class="hdr-btn" id="swapBtn">⇅</button>
       <button class="hdr-btn" id="langBtn">日本語</button>
@@ -281,14 +281,14 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
   </div>
 
   <div class="footer">
-    TUNEBEAT — FREE ONLINE TUNER & METRONOME v2
+    PICKTONE — FREE ONLINE TUNER & METRONOME v2
     <br><a href="/about.html">About</a>|<a href="/privacy.html">Privacy Policy</a>
   </div>
 </div><!-- /wrap -->
 
 <script>
 // ═══ localStorage ═══
-const LS_KEY='tunebeat_prefs';
+const LS_KEY='picktone_prefs';
 function loadPrefs(){try{const s=localStorage.getItem(LS_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 function savePrefs(){try{localStorage.setItem(LS_KEY,JSON.stringify({lang,bpm,tsNum,tsDen,customTs,vol,refHz,metFirst,selKey,selMode}));}catch(e){}}
 const saved=loadPrefs();

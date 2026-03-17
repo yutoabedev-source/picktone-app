@@ -1,10 +1,10 @@
-# TuneBeat — プロジェクトドキュメント
+# PickTone — プロジェクトドキュメント
 
 ## 概要
 
-TuneBeatは、ミュージシャン向けの練習プラットフォーム。クロマチックチューナーとメトロノームを基本機能とし、将来的にバッキングトラック再生、スケール可視化、AI演奏分析へ拡張予定。Web版（SEO集客）＋ネイティブアプリ（Android / Windows）のマルチプラットフォーム展開。
+PickToneは、ミュージシャン向けの練習プラットフォーム。クロマチックチューナーとメトロノームを基本機能とし、将来的にバッキングトラック再生、スケール可視化、AI演奏分析へ拡張予定。Web版（SEO集客）＋ネイティブアプリ（Android / Windows）のマルチプラットフォーム展開。
 
-**URL:** https://tunebeat.org
+**URL:** https://picktone.org
 
 **対象ユーザー:** ギタリスト、ベーシスト、その他の楽器プレイヤー（英語圏 + 日本語圏）
 
@@ -160,7 +160,7 @@ ai_analyses (
 
 ### 5. 設定の永続化（localStorage）
 
-保存キー: `tunebeat_prefs`
+保存キー: `picktone_prefs`
 
 | 保存項目 | デフォルト値 |
 |----------|-------------|
@@ -190,14 +190,14 @@ ai_analyses (
 ### 現在（Phase 1: Web版のみ）
 
 ```
-tunebeat-app/
+picktone-app/
 ├── public/                      ← Cloudflare Pagesデプロイ対象
 │   ├── index.html               ← メインアプリ（全機能内蔵）
 │   ├── about.html               ← Aboutページ
 │   ├── privacy.html             ← Privacy Policyページ
 │   ├── sitemap.xml              ← サイトマップ
 │   └── robots.txt               ← クローラー設定
-├── TuneBeat-README.md           ← このドキュメント
+├── PickTone-README.md           ← このドキュメント
 ├── LICENSE                      ← MIT License
 ├── wrangler.toml                ← Cloudflare Workers設定
 └── .gitignore
@@ -206,7 +206,7 @@ tunebeat-app/
 ### 将来（Phase 2以降: マルチプラットフォーム）
 
 ```
-tunebeat/
+picktone/
 ├── web/                          ← Web版（SEO集客用）
 │   ├── index.html
 │   ├── about.html
@@ -261,7 +261,7 @@ tunebeat/
 
 ## プロダクトロードマップ
 
-### Phase 1: TuneBeat基本版 ← 現在ここ
+### Phase 1: PickTone基本版 ← 現在ここ
 
 チューナー＋メトロノームの公開・収益化。
 
@@ -275,7 +275,7 @@ tunebeat/
 | パネル入替（⇅、モバイルのみ） | ✅ 実装済み |
 | インラインヘルプ（レスポンシブ） | ✅ 実装済み |
 | PCレイアウト（横並び2カラム） | ✅ 実装済み |
-| ドメイン取得（tunebeat.org） | ✅ 完了 |
+| ドメイン取得（picktone.org） | ✅ 完了 |
 | Cloudflare Pagesデプロイ | ✅ 完了 |
 | About / Privacy Policyページ作成 | ✅ 完了 |
 | SEO最適化（title, meta, OGP, sitemap） | ✅ 完了 |
@@ -307,7 +307,7 @@ SEOターゲットキーワード: "online tuner", "online metronome", "free chr
 
 | タスク | 詳細 |
 |--------|------|
-| Expoプロジェクト初期化 | `npx create-expo-app tunebeat-app` |
+| Expoプロジェクト初期化 | `npx create-expo-app picktone-app` |
 | Supabaseプロジェクト作成 | Google OAuth設定、user_settingsテーブル作成 |
 | Google Sign-In実装 | Supabase Auth + expo-auth-session |
 | Phase 1機能のアプリ移植 | チューナー、メトロノーム |
