@@ -137,6 +137,17 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
   font-size:9.5px;color:#555;line-height:1.7;font-weight:500}
 .inline-help p{margin:0 0 4px}
 .inline-help em{color:#9a9a60;font-style:normal}
+/* Key grid */
+.key-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
+.key-btn{padding:8px 0;border-radius:3px;font-size:13px;font-weight:700;text-align:center;
+  background:linear-gradient(180deg,#3a3a38,#2a2a28);border:1px solid #444;color:#777;
+  letter-spacing:.02em;transition:all .1s;font-family:'Orbitron',monospace}
+.key-btn:active{background:#222}
+.key-btn.sel{color:#d4e84e;border-color:#6a6a20;background:linear-gradient(180deg,#333320,#2a2a18);
+  box-shadow:0 0 6px #d4e84e22}
+.key-btn.sharp{font-size:11px;color:#666}
+.key-btn.sharp.sel{color:#d4e84e}
+
 .pc-only{display:none}
 @media(min-width:720px){.pc-only{display:block}}
 /* ═══ PC Layout ═══ */
@@ -172,6 +183,9 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
   .ctrl-row{gap:8px;margin-top:10px}
   .inline-help{font-size:10px;margin-top:14px;padding-top:10px}
   .footer{margin-top:16px;font-size:9px}
+  #keyPanel{margin-top:4px}
+  .key-grid{grid-template-columns:repeat(6,1fr);gap:6px}
+  .key-btn{padding:10px 0;font-size:14px}
   #gauge{max-width:280px}
   .bd{width:22px!important;height:22px!important}
   .bd .x{font-size:8px}
@@ -248,6 +262,24 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
   </div>
   </div><!-- /panelsWrap -->
 
+  <!-- KEY / SCALE -->
+  <div class="enc" id="keyPanel">
+    <div class="slbl"><span class="led" id="kDot"></span><span id="kLbl">KEY / SCALE</span></div>
+    <div class="lcd">
+      <div style="text-align:center">
+        <span class="lcd-note on" id="kDisp">C</span>
+        <span class="lcd-oct on" id="kMode">maj</span>
+      </div>
+      <div class="lcd-inf" id="kInf">C D E F G A B</div>
+    </div>
+    <div class="key-grid" id="keyGrid"></div>
+    <div class="ctrl-row" style="justify-content:center;margin-top:10px">
+      <button class="sm-btn sel" id="majBtn">MAJOR</button>
+      <button class="sm-btn" id="minBtn">MINOR</button>
+    </div>
+    <div class="inline-help pc-only" id="keyHelp"></div>
+  </div>
+
   <div class="footer">
     TUNEBEAT — FREE ONLINE TUNER & METRONOME v2
     <br><a href="/about.html">About</a>|<a href="/privacy.html">Privacy Policy</a>
@@ -258,7 +290,7 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
 // ═══ localStorage ═══
 const LS_KEY='tunebeat_prefs';
 function loadPrefs(){try{const s=localStorage.getItem(LS_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
-function savePrefs(){try{localStorage.setItem(LS_KEY,JSON.stringify({lang,bpm,tsNum,tsDen,customTs,vol,refHz,metFirst}));}catch(e){}}
+function savePrefs(){try{localStorage.setItem(LS_KEY,JSON.stringify({lang,bpm,tsNum,tsDen,customTs,vol,refHz,metFirst,selKey,selMode}));}catch(e){}}
 const saved=loadPrefs();
 
 // ═══ State ═══
@@ -269,15 +301,16 @@ let bpm=saved?.bpm||120,tsNum=saved?.tsNum||4,tsDen=saved?.tsDen||4,customTs=sav
 let mCtx=null,mTimer=null,mNext=0,mBeat=0,mPlay=false;
 let vol=saved?.vol??0.8,mutedBeats=new Set();
 let metFirst=saved?.metFirst||false;
+let selKey=saved?.selKey||0,selMode=saved?.selMode||'maj';
 const taps=[];
 const presets=[[2,4],[3,4],[4,4],[5,4],[6,8],[7,8]];
 
 // ═══ i18n ═══
 const TT={
-  en:{tuner:'TUNER',met:'METRONOME',start:'START',stop:'STOP',tap:'TAP',
-      muteTip:'Tap a beat to mute/unmute',vol:'VOL'},
-  ja:{tuner:'チューナー',met:'メトロノーム',start:'スタート',stop:'ストップ',tap:'タップ',
-      muteTip:'各拍タップでミュート切替',vol:'音量'}
+  en:{tuner:'TUNER',met:'METRONOME',key:'KEY / SCALE',start:'START',stop:'STOP',tap:'TAP',
+      muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR'},
+  ja:{tuner:'チューナー',met:'メトロノーム',key:'キー / スケール',start:'スタート',stop:'ストップ',tap:'タップ',
+      muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー'}
 };
 const t=()=>TT[lang];
 
@@ -287,11 +320,15 @@ function renderHelp(){
       '<p>A4基準音は420〜460Hzで調整可能。オーディオインターフェース経由のギター直入力にも対応しています。</p>';
     $('metHelp').innerHTML=
       '<p>BPMは数値の直接入力かスライダーで設定。各拍の丸をタップするとミュートでき、音は消えますが枠は光り続けます。<em>TAP</em> を曲に合わせて叩くとBPMを自動算出します。</p>';
+    $('keyHelp').innerHTML=
+      '<p>キーとメジャー/マイナーを選択すると、そのスケールの構成音が表示されます。</p>';
   }else{
     $('tunerHelp').innerHTML=
       '<p>The A4 reference pitch can be adjusted between 420–460 Hz. Direct guitar input through an audio interface is also supported.</p>';
     $('metHelp').innerHTML=
       '<p>Set BPM by typing a number or using the slider. Tap any beat dot to mute it — the click is silenced but the border still lights up. Hit <em>TAP</em> along with a song to auto-calculate tempo.</p>';
+    $('keyHelp').innerHTML=
+      '<p>Select a key and major/minor to see the scale notes.</p>';
   }
 }
 
@@ -392,12 +429,41 @@ function uMet(){
   $('muteTip').textContent=t().muteTip;
   $('volVal').textContent=Math.round(vol*100);
 }
+// ═══ Key / Scale ═══
+const MAJ_STEPS=[0,2,4,5,7,9,11]; // W W H W W W H
+const MIN_STEPS=[0,2,3,5,7,8,10]; // W H W W H W W
+function getScaleNotes(root,mode){
+  const steps=mode==='maj'?MAJ_STEPS:MIN_STEPS;
+  return steps.map(s=>NOTES[(root+s)%12]);
+}
+function uKey(){
+  // Grid
+  let h='';
+  NOTES.forEach((n,i)=>{
+    const isSel=selKey===i;
+    const isSharp=n.includes('#');
+    h+=`<button class="key-btn${isSel?' sel':''}${isSharp?' sharp':''}" data-ki="${i}">${n}</button>`;
+  });
+  $('keyGrid').innerHTML=h;
+  // Mode buttons
+  $('majBtn').className='sm-btn'+(selMode==='maj'?' sel':'');
+  $('minBtn').className='sm-btn'+(selMode==='min'?' sel':'');
+  $('majBtn').textContent=t().major;
+  $('minBtn').textContent=t().minor;
+  // LCD
+  const notes=getScaleNotes(selKey,selMode);
+  $('kDisp').textContent=NOTES[selKey];
+  $('kMode').textContent=selMode==='maj'?'maj':'min';
+  $('kInf').textContent=notes.join('  ');
+  $('kDot').className='led g';
+}
+
 function uLang(){
   document.documentElement.lang=lang;
   $('langBtn').textContent=lang==='ja'?'EN':'日本語';
-  $('tLbl').textContent=t().tuner;$('mLbl').textContent=t().met;
+  $('tLbl').textContent=t().tuner;$('mLbl').textContent=t().met;$('kLbl').textContent=t().key;
   $('tapBtn').innerHTML='♩ '+t().tap;$('volLbl').textContent=t().vol;
-  renderHelp();uTuner();uMet();
+  renderHelp();uTuner();uMet();uKey();
 }
 
 // ═══ Tuner ═══
@@ -432,6 +498,11 @@ $('tapBtn').onclick=()=>{const now=Date.now();taps.push(now);if(taps.length>5)ta
   if(iv.length){const avg=iv.reduce((a,b)=>a+b,0)/iv.length;const n=Math.round(60000/avg);if(n>=20&&n<=300){bpm=n;restartMet();uMet();savePrefs();}}}};
 $('tsRow').addEventListener('click',e=>{const b=e.target;if(b.dataset.pn){tsNum=+b.dataset.pn;tsDen=+b.dataset.pd;customTs=false;mutedBeats.clear();restartMet();uMet();savePrefs();}});
 $('btsRow').addEventListener('click',e=>{const bd=e.target.closest('.bd');if(!bd)return;const i=+bd.dataset.bi;if(mutedBeats.has(i))mutedBeats.delete(i);else mutedBeats.add(i);uMet();});
+
+// ═══ Key Events ═══
+$('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;uKey();savePrefs();});
+$('majBtn').onclick=()=>{selMode='maj';uKey();savePrefs();};
+$('minBtn').onclick=()=>{selMode='min';uKey();savePrefs();};
 
 // ═══ Panel Swap ═══
 function applyOrder(){const w=$('panelsWrap'),tp=$('tunerPanel'),mp=$('metPanel');if(metFirst)w.insertBefore(mp,w.firstChild);else w.insertBefore(tp,w.firstChild);}
