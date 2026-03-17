@@ -155,6 +155,24 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
 .prog-name{font-size:9px;color:#666;font-weight:700;letter-spacing:.06em;min-width:60px;flex-shrink:0}
 .prog-chords{font-size:12px;color:#999;font-weight:700;font-family:'Orbitron',monospace;letter-spacing:.04em}
 .prog-row.sel .prog-chords{color:#d4e84e}
+.prog-play{background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:0 4px;flex-shrink:0;transition:color .1s}
+.prog-row.playing .prog-play{color:#d4e84e}
+.prog-row.playing{border-color:#6a6a20;background:linear-gradient(180deg,#333320,#2a2a18)}
+.prog-row.playing .prog-chords{color:#d4e84e}
+
+/* Fretboard */
+.fretboard{overflow-x:auto;margin-top:8px}
+.fretboard table{border-collapse:collapse;width:100%;min-width:420px}
+.fretboard th{font-size:7px;color:#444;font-weight:600;padding:1px 0;text-align:center;width:calc(100%/16)}
+.fretboard td{position:relative;height:22px;border-right:1px solid #3a3a38;border-bottom:1px solid #555;text-align:center;padding:0}
+.fretboard tr:first-child td{border-bottom-color:#666}
+.fretboard tr:last-child td{border-bottom:none}
+.fretboard td:first-child{border-right:2px solid #888;background:#1a1a18}
+.fb-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+  font-size:7px;font-weight:700;font-family:'Chakra Petch',sans-serif;color:#333;background:none}
+.fb-dot.in{background:#3a3a30;color:#999}
+.fb-dot.root{background:#6a6a20;color:#d4e84e;box-shadow:0 0 4px #d4e84e44}
+.scale-mode-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 
 /* Key grid */
 .key-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
@@ -305,9 +323,17 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
     <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
       <div class="slbl" style="margin-bottom:6px"><span id="pLbl">PROGRESSIONS</span></div>
       <div id="progList"></div>
-      <div class="ctrl-row" style="justify-content:center;margin-top:8px">
-        <button class="sm-btn" id="backBtn">BACKING</button>
+    </div>
+    <!-- Fretboard -->
+    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="fbLbl">FRETBOARD</span></div>
+      <div class="scale-mode-row" id="scaleModeRow">
+        <button class="sm-btn sel" data-sm="maj">MAJOR</button>
+        <button class="sm-btn" data-sm="min">MINOR</button>
+        <button class="sm-btn" data-sm="penta">PENTA</button>
+        <button class="sm-btn" data-sm="minPenta">m PENTA</button>
       </div>
+      <div class="fretboard" id="fretboard"></div>
     </div>
     <div class="inline-help pc-only" id="keyHelp"></div>
   </div>
@@ -341,10 +367,10 @@ const presets=[[2,4],[3,4],[4,4],[5,4],[6,8],[7,8]];
 const TT={
   en:{tuner:'TUNER',met:'METRONOME',key:'KEY / SCALE',start:'START',stop:'STOP',tap:'TAP',
       muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR',
-      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS',out:'OUT',backing:'BACKING'},
+      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS',out:'OUT',fretboard:'FRETBOARD'},
   ja:{tuner:'チューナー',met:'メトロノーム',key:'キー / スケール',start:'スタート',stop:'ストップ',tap:'タップ',
       muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー',
-      diatonic:'ダイアトニックコード',prog:'コード進行',out:'スケール外',backing:'バッキング'}
+      diatonic:'ダイアトニックコード',prog:'コード進行',out:'スケール外',fretboard:'指板'}
 };
 const t=()=>TT[lang];
 
@@ -508,7 +534,7 @@ function uKey(){
   $('kMode').textContent=selMode==='maj'?'maj':'min';
   $('kInf').innerHTML=notes.map(n=>`<span class="scale-note" data-sn="${n}">${n}</span>`).join('');
   $('kDot').className='led g';
-  uChords();
+  uChords();uFretboard();
 }
 function uScaleHighlight(){
   const spans=$('kInf').querySelectorAll('.scale-note');
@@ -516,6 +542,45 @@ function uScaleHighlight(){
   spans.forEach(s=>{
     if(s.dataset.sn===nd.name){s.className='scale-note active';}
     else{s.className='scale-note dim';}
+  });
+}
+// ═══ Fretboard ═══
+const PENTA_STEPS=[0,2,4,7,9];
+const MIN_PENTA_STEPS=[0,3,5,7,10];
+const SCALE_MODES={maj:{steps:MAJ_STEPS,degs:['R','2','3','4','5','6','7']},
+  min:{steps:MIN_STEPS,degs:['R','2','♭3','4','5','♭6','♭7']},
+  penta:{steps:PENTA_STEPS,degs:['R','2','3','5','6']},
+  minPenta:{steps:MIN_PENTA_STEPS,degs:['R','♭3','4','5','♭7']}};
+const TUNING=[40,45,50,55,59,64]; // E2 A2 D3 G3 B3 E4
+const STR_LABELS=['E','A','D','G','B','e'];
+const FRET_COUNT=15;
+function uFretboard(){
+  const mode=SCALE_MODES[scaleMode];
+  const scaleSet=new Map();
+  mode.steps.forEach((s,i)=>scaleSet.set((selKey+s)%12,mode.degs[i]));
+  let html='<table><tr><th></th>';
+  for(let f=0;f<=FRET_COUNT;f++)html+=`<th>${f}</th>`;
+  html+='</tr>';
+  for(let s=5;s>=0;s--){
+    html+=`<tr><td style="font-size:8px;color:#555;font-weight:700;border-right:2px solid #888">${STR_LABELS[s]}</td>`;
+    for(let f=0;f<=FRET_COUNT;f++){
+      const midi=TUNING[s]+f;
+      const note=midi%12;
+      const deg=scaleSet.get(note);
+      if(deg){
+        const isRoot=deg==='R';
+        html+=`<td><span class="fb-dot ${isRoot?'root':'in'}">${deg}</span></td>`;
+      }else{
+        html+='<td></td>';
+      }
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  $('fretboard').innerHTML=html;
+  // Update mode buttons
+  $('scaleModeRow').querySelectorAll('.sm-btn').forEach(b=>{
+    b.className='sm-btn'+(b.dataset.sm===scaleMode?' sel':'');
   });
 }
 // ═══ Diatonic Chords & Progressions ═══
@@ -537,6 +602,7 @@ const PROGS_MIN=[
   {name:'Minor Blues',degs:[0,0,0,0,3,3,0,0,4,3,0,4],label:'i – i – i – i – iv – iv – i – i – v – iv – i – v'},
 ];
 let selProg=-1,backingOn=false,backIdx=0,backBar=0;
+let scaleMode='maj'; // maj, min, penta, minPenta
 function getDiatonic(root,mode){
   const steps=mode==='maj'?MAJ_STEPS:MIN_STEPS;
   const quals=mode==='maj'?MAJ_CHORD_Q:MIN_CHORD_Q;
@@ -558,15 +624,17 @@ function uChords(){
   const progs=selMode==='maj'?PROGS_MAJ:PROGS_MIN;
   let ph='';
   progs.forEach((p,i)=>{
+    const playing=backingOn&&selProg===i&&metOn;
+    const sel=selProg===i;
     const chordNames=p.degs.map(d=>chords[d].name).join(' – ');
-    ph+=`<div class="prog-row${selProg===i?' sel':''}" data-pi="${i}">
+    ph+=`<div class="prog-row${sel?' sel':''}${playing?' playing':''}" data-pi="${i}">
+      <button class="prog-play" data-pp="${i}">${playing?'■':'▶'}</button>
       <span class="prog-name">${p.name}</span><span class="prog-chords">${chordNames}</span></div>`;
   });
   $('progList').innerHTML=ph;
   $('cLbl').textContent=t().diatonic;
   $('pLbl').textContent=t().prog;
-  $('backBtn').textContent=t().backing;
-  $('backBtn').className='sm-btn'+(backingOn?' sel':'');
+  $('fbLbl').textContent=t().fretboard;
 }
 
 function uLang(){
@@ -649,8 +717,22 @@ $('btsRow').addEventListener('click',e=>{const bd=e.target.closest('.bd');if(!bd
 $('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;selProg=-1;uKey();savePrefs();});
 $('majBtn').onclick=()=>{selMode='maj';uKey();savePrefs();};
 $('minBtn').onclick=()=>{selMode='min';selProg=-1;uKey();savePrefs();};
-$('progList').addEventListener('click',e=>{const r=e.target.closest('.prog-row');if(!r)return;const i=+r.dataset.pi;selProg=selProg===i?-1:i;backIdx=0;uChords();});
-$('backBtn').onclick=()=>{if(selProg<0)return;backingOn=!backingOn;backIdx=0;$('backBtn').className='sm-btn'+(backingOn?' sel':'');$('backBtn').textContent=t().backing;};
+$('scaleModeRow').addEventListener('click',e=>{const b=e.target.closest('.sm-btn');if(!b)return;scaleMode=b.dataset.sm;uFretboard();});
+$('progList').addEventListener('click',e=>{
+  const pb=e.target.closest('.prog-play');
+  const r=e.target.closest('.prog-row');if(!r)return;
+  const i=+r.dataset.pi;
+  if(pb){
+    // Play/stop button clicked
+    if(backingOn&&selProg===i){backingOn=false;stopMet();}
+    else{selProg=i;backingOn=true;backIdx=0;if(!metOn)startMet();else restartMet();}
+    uChords();return;
+  }
+  // Row body clicked — just select/deselect
+  if(selProg===i){selProg=-1;if(backingOn){backingOn=false;stopMet();}}
+  else{selProg=i;backIdx=0;}
+  uChords();
+});
 
 // ═══ Panel Swap ═══
 function applyOrder(){const w=$('panelsWrap'),tp=$('tunerPanel'),mp=$('metPanel');if(metFirst)w.insertBefore(mp,w.firstChild);else w.insertBefore(tp,w.firstChild);}
