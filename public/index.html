@@ -85,6 +85,12 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
 .lcd-oct.on{color:#8a8a40}
 .lcd-inf{font-family:'Orbitron',monospace;font-size:10px;text-align:center;color:#3a3a30;margin-top:4px;font-weight:600;letter-spacing:.06em}
 .lcd-inf .ok{color:#44ee44}.lcd-inf .sh{color:#ee8844}
+.scale-note{margin:0 3px;transition:color .1s}
+.scale-note.active{color:#d4e84e;text-shadow:0 0 6px #d4e84e44}
+.scale-note.dim{color:#3a3a30}
+.deg-tag{font-size:9px;margin-left:4px;font-weight:700;vertical-align:super}
+.deg-tag.in{color:#8a8a40}
+.deg-tag.out{color:#e84e4e}
 
 .lcd-bpm{font-family:'Orbitron',monospace;font-size:38px;font-weight:900;text-align:center;line-height:1;
   color:#555;letter-spacing:.06em}
@@ -231,7 +237,7 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
     <div class="slbl"><span class="led" id="tDot"></span><span id="tLbl">TUNER</span></div>
     <div class="lcd">
       <div style="text-align:center">
-        <span class="lcd-note" id="nN">—</span><span class="lcd-oct" id="nO"></span>
+        <span class="lcd-note" id="nN">—</span><span class="lcd-oct" id="nO"></span><span class="deg-tag" id="degTag"></span>
       </div>
       <div class="lcd-inf" id="tInf">— CENTS &nbsp;|&nbsp; — HZ</div>
     </div>
@@ -332,10 +338,10 @@ const presets=[[2,4],[3,4],[4,4],[5,4],[6,8],[7,8]];
 const TT={
   en:{tuner:'TUNER',met:'METRONOME',key:'KEY / SCALE',start:'START',stop:'STOP',tap:'TAP',
       muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR',
-      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS'},
+      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS',out:'OUT'},
   ja:{tuner:'チューナー',met:'メトロノーム',key:'キー / スケール',start:'スタート',stop:'ストップ',tap:'タップ',
       muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー',
-      diatonic:'ダイアトニックコード',prog:'コード進行'}
+      diatonic:'ダイアトニックコード',prog:'コード進行',out:'スケール外'}
 };
 const t=()=>TT[lang];
 
@@ -405,10 +411,26 @@ function drawG(){
 
 // ═══ UI ═══
 const $=id=>document.getElementById(id);
+function getScaleDeg(noteName){
+  const scaleNotes=getScaleNotes(selKey,selMode);
+  const idx=scaleNotes.indexOf(noteName);
+  if(idx===-1)return null;
+  return(selMode==='maj'?MAJ_DEGS:MIN_DEGS)[idx];
+}
 function uTuner(){
   const ok=tunerOn&&Math.abs(nd.cents)<5;
   const nn=$('nN');nn.textContent=nd.name;nn.className='lcd-note'+(tunerOn?(ok?' ok':' on'):'');
   const no=$('nO');no.textContent=nd.oct;no.className='lcd-oct'+(tunerOn?' on':'');
+  // Scale degree or OUT tag
+  const dt=$('degTag');
+  if(tunerOn&&nd.name!=='—'){
+    const deg=getScaleDeg(nd.name);
+    if(deg){dt.textContent=deg;dt.className='deg-tag in';}
+    else{dt.textContent=t().out;dt.className='deg-tag out';}
+    // Out-of-scale: override note color to red
+    if(!deg){nn.className='lcd-note on';nn.style.color='#e84e4e';nn.style.textShadow='0 0 12px #e84e4e44';}
+    else{nn.style.color='';nn.style.textShadow='';}
+  }else{dt.textContent='';dt.className='deg-tag';nn.style.color='';nn.style.textShadow='';}
   if(tunerOn){
     const cc=ok?'ok':'sh';
     $('tInf').innerHTML=`<span class="${cc}">${nd.cents>0?'+':''}${nd.cents} CENTS</span> &nbsp;|&nbsp; ${nd.freq.toFixed(1)} HZ`;
@@ -417,6 +439,8 @@ function uTuner(){
   $('tDot').className='led'+(tunerOn?' g':'');
   $('tBtn').textContent=(tunerOn?'■  ':'● ')+t()[tunerOn?'stop':'start'];
   $('tBtn').className='stomp'+(tunerOn?' active-g':'');
+  // Update scale note highlights
+  uScaleHighlight();
 }
 function uMet(){
   const bi=$('bpmIn');bi.value=bpm;bi.style.color=metOn?'#d4e84e':'#555';
@@ -479,9 +503,17 @@ function uKey(){
   const notes=getScaleNotes(selKey,selMode);
   $('kDisp').textContent=NOTES[selKey];
   $('kMode').textContent=selMode==='maj'?'maj':'min';
-  $('kInf').textContent=notes.join('  ');
+  $('kInf').innerHTML=notes.map(n=>`<span class="scale-note" data-sn="${n}">${n}</span>`).join('');
   $('kDot').className='led g';
   uChords();
+}
+function uScaleHighlight(){
+  const spans=$('kInf').querySelectorAll('.scale-note');
+  if(!tunerOn||nd.name==='—'){spans.forEach(s=>{s.className='scale-note';});return;}
+  spans.forEach(s=>{
+    if(s.dataset.sn===nd.name){s.className='scale-note active';}
+    else{s.className='scale-note dim';}
+  });
 }
 // ═══ Diatonic Chords & Progressions ═══
 const MAJ_CHORD_Q=[0,0,1,0,0,1,2]; // 0=maj,1=min,2=dim
