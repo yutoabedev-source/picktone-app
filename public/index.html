@@ -249,6 +249,45 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
     </div>
   </div>
 
+  <!-- KEY / SCALE -->
+  <div class="enc" id="keyPanel">
+    <div class="slbl"><span class="led" id="kDot"></span><span id="kLbl">KEY / SCALE</span></div>
+    <div class="lcd">
+      <div style="text-align:center">
+        <span class="lcd-note on" id="kDisp">C</span>
+        <span class="lcd-oct on" id="kMode">maj</span>
+      </div>
+      <div class="lcd-inf" id="kInf">C D E F G A B</div>
+    </div>
+    <div class="key-grid" id="keyGrid"></div>
+    <div class="ctrl-row" style="justify-content:center;margin-top:10px">
+      <button class="sm-btn sel" id="majBtn">MAJOR</button>
+      <button class="sm-btn" id="minBtn">MINOR</button>
+    </div>
+    <!-- Diatonic Chords -->
+    <div class="sub-section" style="margin-top:12px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="cLbl">DIATONIC CHORDS</span></div>
+      <div class="chord-row" id="chordRow"></div>
+    </div>
+    <!-- Chord Progressions -->
+    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="pLbl">PROGRESSIONS</span></div>
+      <div id="progList"></div>
+    </div>
+    <!-- Fretboard -->
+    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="fbLbl">FRETBOARD</span></div>
+      <div class="scale-mode-row" id="scaleModeRow">
+        <button class="sm-btn sel" data-sm="maj">MAJOR</button>
+        <button class="sm-btn" data-sm="min">MINOR</button>
+        <button class="sm-btn" data-sm="penta">PENTA</button>
+        <button class="sm-btn" data-sm="minPenta">m PENTA</button>
+      </div>
+      <div class="fretboard" id="fretboard"></div>
+    </div>
+    <div class="inline-help pc-only" id="keyHelp"></div>
+  </div>
+
   <div id="panelsWrap">
   <!-- TUNER -->
   <div class="enc" id="tunerPanel">
@@ -298,45 +337,6 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
     <div class="inline-help" id="metHelp"></div>
   </div>
   </div><!-- /panelsWrap -->
-
-  <!-- KEY / SCALE -->
-  <div class="enc" id="keyPanel">
-    <div class="slbl"><span class="led" id="kDot"></span><span id="kLbl">KEY / SCALE</span></div>
-    <div class="lcd">
-      <div style="text-align:center">
-        <span class="lcd-note on" id="kDisp">C</span>
-        <span class="lcd-oct on" id="kMode">maj</span>
-      </div>
-      <div class="lcd-inf" id="kInf">C D E F G A B</div>
-    </div>
-    <div class="key-grid" id="keyGrid"></div>
-    <div class="ctrl-row" style="justify-content:center;margin-top:10px">
-      <button class="sm-btn sel" id="majBtn">MAJOR</button>
-      <button class="sm-btn" id="minBtn">MINOR</button>
-    </div>
-    <!-- Diatonic Chords -->
-    <div class="sub-section" style="margin-top:12px;padding-top:10px;border-top:1px solid #2a2a28">
-      <div class="slbl" style="margin-bottom:6px"><span id="cLbl">DIATONIC CHORDS</span></div>
-      <div class="chord-row" id="chordRow"></div>
-    </div>
-    <!-- Chord Progressions -->
-    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
-      <div class="slbl" style="margin-bottom:6px"><span id="pLbl">PROGRESSIONS</span></div>
-      <div id="progList"></div>
-    </div>
-    <!-- Fretboard -->
-    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
-      <div class="slbl" style="margin-bottom:6px"><span id="fbLbl">FRETBOARD</span></div>
-      <div class="scale-mode-row" id="scaleModeRow">
-        <button class="sm-btn sel" data-sm="maj">MAJOR</button>
-        <button class="sm-btn" data-sm="min">MINOR</button>
-        <button class="sm-btn" data-sm="penta">PENTA</button>
-        <button class="sm-btn" data-sm="minPenta">m PENTA</button>
-      </div>
-      <div class="fretboard" id="fretboard"></div>
-    </div>
-    <div class="inline-help pc-only" id="keyHelp"></div>
-  </div>
 
   <div class="footer">
     PICKTONE — FREE ONLINE TUNER & METRONOME v2
