@@ -661,6 +661,36 @@ const CHORD_INT={maj:[0,4,7],min:[0,3,7],dim:[0,3,6]};
 let backNodes=[];
 function noteToMidi(noteName){return 48+NOTES.indexOf(noteName);} // C3 base
 function stopBacking(){backNodes.forEach(({osc,g})=>{try{g.gain.cancelScheduledValues(0);g.gain.setValueAtTime(0,mCtx.currentTime);osc.stop(mCtx.currentTime+0.02);}catch(e){}});backNodes=[];}
+function makeNote(freq,time,dur,v){
+  if(!mCtx)return;
+  // Main tone: triangle for warmth
+  const o1=mCtx.createOscillator(),g1=mCtx.createGain();
+  o1.type='triangle';o1.frequency.value=freq;
+  // Detuned layer: slight chorus
+  const o2=mCtx.createOscillator(),g2=mCtx.createGain();
+  o2.type='triangle';o2.frequency.value=freq*1.003;
+  // Octave harmonic
+  const o3=mCtx.createOscillator(),g3=mCtx.createGain();
+  o3.type='sine';o3.frequency.value=freq*2;
+  // Connect
+  o1.connect(g1);o2.connect(g2);o3.connect(g3);
+  g1.connect(mCtx.destination);g2.connect(mCtx.destination);g3.connect(mCtx.destination);
+  // Guitar-like envelope: sharp attack, natural decay
+  const peak=v,sus=v*0.5;
+  [g1,g2].forEach(g=>{
+    g.gain.setValueAtTime(0.001,time);
+    g.gain.linearRampToValueAtTime(peak,time+0.01);
+    g.gain.exponentialRampToValueAtTime(Math.max(sus,0.001),time+0.15);
+    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
+  });
+  // Octave harmonic quieter
+  g3.gain.setValueAtTime(0.001,time);
+  g3.gain.linearRampToValueAtTime(peak*0.15,time+0.01);
+  g3.gain.exponentialRampToValueAtTime(0.001,time+dur*0.6);
+  [o1,o2,o3].forEach(o=>{o.start(time);o.stop(time+dur+0.01);});
+  backNodes.push({osc:o1,g:g1},{osc:o2,g:g2},{osc:o3,g:g3});
+  o1.onended=()=>{backNodes=backNodes.filter(n=>n.osc!==o1&&n.osc!==o2&&n.osc!==o3);};
+}
 function playChord(time,chordName,dur){
   if(!mCtx)return;
   stopBacking();
@@ -670,19 +700,10 @@ function playChord(time,chordName,dur){
   else{root=chordName;}
   const midi=noteToMidi(root);
   const intervals=CHORD_INT[qual];
+  const v=vol*0.1;
   intervals.forEach(iv=>{
     const freq=440*Math.pow(2,(midi+iv-69)/12);
-    const osc=mCtx.createOscillator(),g=mCtx.createGain();
-    osc.type='sine';osc.frequency.value=freq;
-    osc.connect(g);g.connect(mCtx.destination);
-    const v=vol*0.12;
-    g.gain.setValueAtTime(0.001,time);
-    g.gain.linearRampToValueAtTime(v,time+0.05);
-    g.gain.setValueAtTime(v,time+dur-0.1);
-    g.gain.linearRampToValueAtTime(0.001,time+dur);
-    osc.start(time);osc.stop(time+dur+0.01);
-    backNodes.push({osc,g});
-    osc.onended=()=>{backNodes=backNodes.filter(n=>n.osc!==osc);};
+    makeNote(freq,time,dur,v);
   });
 }
 function schedBacking(time,beat){
