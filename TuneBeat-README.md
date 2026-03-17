@@ -2,9 +2,9 @@
 
 ## 概要
 
-TuneBeatは、ミュージシャン向けの練習プラットフォーム。クロマチックチューナー、メトロノーム、BPM検知を基本機能とし、将来的にバッキングトラック再生、スケール可視化、AI演奏分析へ拡張予定。Web版（SEO集客）＋ネイティブアプリ（Android / Windows）のマルチプラットフォーム展開。
+TuneBeatは、ミュージシャン向けの練習プラットフォーム。クロマチックチューナーとメトロノームを基本機能とし、将来的にバッキングトラック再生、スケール可視化、AI演奏分析へ拡張予定。Web版（SEO集客）＋ネイティブアプリ（Android / Windows）のマルチプラットフォーム展開。
 
-**ターゲットURL案:** `tunebeat.app` / `tunebeat.io`
+**URL:** https://tunebeat.org
 
 **対象ユーザー:** ギタリスト、ベーシスト、その他の楽器プレイヤー（英語圏 + 日本語圏）
 
@@ -20,7 +20,7 @@ TuneBeatは、ミュージシャン向けの練習プラットフォーム。ク
 | iOS | 将来対応（Apple Developer Program $99/年 + Mac必須のため後回し） | — |
 | macOS | 将来対応（iOSと同タイミング） | — |
 
-Web版は現状の単一HTMLファイルをそのまま維持。アプリ版はExpoベースで開発し、コアロジック（ピッチ検出、メトロノームスケジューリング、BPM検出）は共通モジュール化する。
+Web版は現状の単一HTMLファイルをそのまま維持。アプリ版はExpoベースで開発し、コアロジック（ピッチ検出、メトロノームスケジューリング）は共通モジュール化する。
 
 ---
 
@@ -33,7 +33,7 @@ Web版は現状の単一HTMLファイルをそのまま維持。アプリ版はE
 - **マイク入力:** `navigator.mediaDevices.getUserMedia`
 - **フォント:** Google Fonts（Orbitron, Chakra Petch）
 - **永続化:** localStorage
-- **ホスティング:** Cloudflare Pages / Vercel / Netlify（静的HTML）
+- **ホスティング:** Cloudflare Pages（Workers）
 - **サーバーサイド:** 不要
 
 ### アプリ版（Phase 2以降）
@@ -133,21 +133,7 @@ ai_analyses (
 | ビート表示 | 均一サイズの丸ドット。1拍目はアンバー、他は緑で光る |
 | スケジューリング | `setTimeout` + `AudioContext.currentTime`による先読みスケジューリング（ドロップアウト防止） |
 
-### 3. BPM自動検知
-
-| 項目 | 詳細 |
-|------|------|
-| 方式 | onset detection（エネルギーベースのビート検出） |
-| 解析帯域 | 60Hz〜4000Hz（キック/スネア帯域） |
-| 閾値 | 動的（直近60フレームの平均エネルギー × 1.4 + 8） |
-| 安定化 | 直近10サンプルの最頻値（mode）で揺れを抑制 |
-| BPM範囲 | 40〜220（半分/倍テンポの自動正規化あり） |
-| 信頼度表示 | 最頻値の割合をパーセントで表示 |
-| 波形表示 | Canvas要素でリアルタイム波形を描画 |
-| 適用 | APPLYボタンでメトロノームのBPMに反映 |
-| UI配置 | メトロノームパネル内に統合。スマホでは折りたたみ式 |
-
-### 4. UI/UX
+### 3. UI/UX
 
 | 項目 | 詳細 |
 |------|------|
@@ -158,11 +144,11 @@ ai_analyses (
 | ボタン | ストンプスイッチ風（押し込みエフェクト付き） |
 | LED | radial-gradient + glowで実LED風 |
 | 装飾 | コーナーにネジ穴ディテール |
-| パネル入替 | ヘッダーの⇅ボタンでチューナー/メトロノームの上下切替 |
-| レスポンシブ | max-width: 400pxベース。720px以上でPC向け表示 |
+| パネル入替 | ヘッダーの⇅ボタンでチューナー/メトロノームの上下切替（モバイルのみ） |
+| レスポンシブ | モバイル: シングルカラム。PC（760px以上）: 横並び2カラム |
 | タッチ対応 | `touch-action: manipulation`、`-webkit-tap-highlight-color: transparent` |
 
-### 5. 多言語対応（i18n）
+### 4. 多言語対応（i18n）
 
 | 項目 | 詳細 |
 |------|------|
@@ -172,7 +158,7 @@ ai_analyses (
 | 保存 | 手動切替後はlocalStorageに保存、次回以降はその設定を優先 |
 | 対象 | 全UIラベル、ボタンテキスト、ヘルプ文、ミュートヒント |
 
-### 6. 設定の永続化（localStorage）
+### 5. 設定の永続化（localStorage）
 
 保存キー: `tunebeat_prefs`
 
@@ -189,13 +175,13 @@ ai_analyses (
 
 ミュートビートのパターンはセッション限り（保存しない）。
 
-### 7. ヘルプ表示
+### 6. ヘルプ表示
 
 | 画面 | 表示方式 |
 |------|----------|
 | チューナー（PC） | パネル下部にインラインテキスト。A4基準音とI/F対応の説明 |
 | チューナー（スマホ） | 非表示 |
-| メトロノーム | パネル下部にインラインテキスト。BPM設定、ミュートビート、タップテンポ、BPM自動検知の説明 |
+| メトロノーム | パネル下部にインラインテキスト。BPM設定、ミュートビート、タップテンポの説明 |
 
 ---
 
@@ -204,11 +190,16 @@ ai_analyses (
 ### 現在（Phase 1: Web版のみ）
 
 ```
-tunebeat/
-├── web/
-│   └── tunebeat.html        ← 単一HTMLファイル（全機能内蔵）
-├── docs/
-│   └── README.md            ← このドキュメント
+tunebeat-app/
+├── public/                      ← Cloudflare Pagesデプロイ対象
+│   ├── index.html               ← メインアプリ（全機能内蔵）
+│   ├── about.html               ← Aboutページ
+│   ├── privacy.html             ← Privacy Policyページ
+│   ├── sitemap.xml              ← サイトマップ
+│   └── robots.txt               ← クローラー設定
+├── TuneBeat-README.md           ← このドキュメント
+├── LICENSE                      ← MIT License
+├── wrangler.toml                ← Cloudflare Workers設定
 └── .gitignore
 ```
 
@@ -254,18 +245,17 @@ tunebeat/
 
 | ブレークポイント | 動作 |
 |------------------|------|
-| < 720px（スマホ） | シングルカラム。チューナー説明非表示。BPM検知は折りたたみ |
-| ≥ 720px（PC） | シングルカラム（max-width: 400px）。チューナー説明表示。BPM検知は常時展開。折りたたみ矢印非表示 |
+| < 760px（スマホ） | シングルカラム。チューナー説明非表示。パネル入替ボタン表示 |
+| ≥ 760px（PC） | 横並び2カラム（max-width: 860px）。チューナー説明表示。パネル入替ボタン非表示 |
+| ≥ 1100px（ワイドPC） | max-width: 960px。フォントサイズ拡大 |
 
 ---
 
 ## 既知の制限事項
 
 1. **マイクアクセス**: `https://` または `localhost` でのみ動作。`file://` や `content://` では `getUserMedia` がブロックされる
-2. **BPM検知精度**: 環境ノイズが多い場合やリズムが不明瞭な曲では精度が下がる
-3. **ブラウザ間の音声**: 別タブの音声（Spotify、YouTube等）は直接取得できない。スピーカー出力をマイクで拾う方式
-4. **iOS Safari**: AudioContextの自動再生制限あり。ユーザーのタップで `resume()` する必要がある（対応済み）
-5. **分母表示**: 拍子の分母は表示のみで動作に影響しない（業界慣例に合わせた仕様）
+2. **iOS Safari**: AudioContextの自動再生制限あり。ユーザーのタップで `resume()` する必要がある（対応済み）
+3. **分母表示**: 拍子の分母は表示のみで動作に影響しない（業界慣例に合わせた仕様）
 
 ---
 
@@ -273,23 +263,22 @@ tunebeat/
 
 ### Phase 1: TuneBeat基本版 ← 現在ここ
 
-チューナー＋メトロノーム＋BPM検知の公開・収益化。
+チューナー＋メトロノームの公開・収益化。
 
 | タスク | 状態 |
 |--------|------|
 | クロマチックチューナー（針式、A4基準音変更） | ✅ 実装済み |
 | メトロノーム（BPM入力、拍子、ミュートビート、タップテンポ、音量） | ✅ 実装済み |
-| BPM自動検知（onset detection） | ✅ 実装済み |
 | ハードウェア風UIデザイン | ✅ 実装済み |
 | 日英多言語対応（ロケール自動判定） | ✅ 実装済み |
 | localStorage設定保存 | ✅ 実装済み |
-| パネル入替（⇅） | ✅ 実装済み |
+| パネル入替（⇅、モバイルのみ） | ✅ 実装済み |
 | インラインヘルプ（レスポンシブ） | ✅ 実装済み |
-| BPM検知の折りたたみ（スマホ） | ✅ 実装済み |
-| PCでの動作確認・バグ修正 | 🔲 未着手 |
-| ドメイン取得・デプロイ | 🔲 未着手 |
-| About / Privacy Policy / ガイドページ作成 | 🔲 未着手 |
-| SEO最適化（title, meta, OGP, sitemap） | 🔲 未着手 |
+| PCレイアウト（横並び2カラム） | ✅ 実装済み |
+| ドメイン取得（tunebeat.org） | ✅ 完了 |
+| Cloudflare Pagesデプロイ | ✅ 完了 |
+| About / Privacy Policyページ作成 | ✅ 完了 |
+| SEO最適化（title, meta, OGP, sitemap） | ✅ 完了 |
 | Google Search Console登録 | 🔲 未着手 |
 | Google AdSense申請 | 🔲 未着手 |
 
@@ -321,7 +310,7 @@ SEOターゲットキーワード: "online tuner", "online metronome", "free chr
 | Expoプロジェクト初期化 | `npx create-expo-app tunebeat-app` |
 | Supabaseプロジェクト作成 | Google OAuth設定、user_settingsテーブル作成 |
 | Google Sign-In実装 | Supabase Auth + expo-auth-session |
-| Phase 1機能のアプリ移植 | チューナー、メトロノーム、BPM検知 |
+| Phase 1機能のアプリ移植 | チューナー、メトロノーム |
 | 設定のクラウド同期 | Supabaseのuser_settingsとlocalの双方向同期 |
 | Android APKビルド | EAS Build |
 | Windowsビルド | Expo for Windows (react-native-windows) |
