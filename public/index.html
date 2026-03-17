@@ -765,35 +765,53 @@ const CHORD_INT={maj:[0,4,7],min:[0,3,7],dim:[0,3,6]};
 let guitar=null,backNodes=[];
 function noteToMidi(noteName){return 48+NOTES.indexOf(noteName);} // C3 base
 function stopBacking(){backNodes.forEach(n=>{try{n.stop();}catch(e){}});backNodes=[];}
-// 8-beat strum pattern: ↓ ↓ ↓↑ ↓ ↓ ↓↑ (1=down, 2=up, 0=rest)
-const STRUM8=[1,1,1,2,1,1,1,2];
+// 8-beat strum pattern: 1=down, 2=up, 0=ghost/mute
+const STRUM8=[1,1,1,2,0,1,1,2];
+// Accent map per 8th note position (1.0=strong, lower=weaker)
+const STRUM_ACC=[1.0,0.6,0.7,0.45,0.3,0.65,0.7,0.4];
+const SWING=0.06; // swing ratio: delay upbeats by this fraction of 8th note
+// Realistic guitar voicings (MIDI arrays, root-relative)
+const VOICINGS={
+  maj:[[0,7,12,16,19,24],[0,4,7,12,16,19],[0,7,12,16,19]],
+  min:[[0,7,12,15,19,24],[0,3,7,12,15,19],[0,7,12,15,19]],
+  dim:[[0,6,12,15,18],[0,3,6,12,15],[0,6,12,15]]
+};
 function loadGuitar(){
   if(guitar||!mCtx)return;
   Soundfont.instrument(mCtx,'acoustic_guitar_steel',{soundfont:'MusyngKite',gain:0.6}).then(g=>{guitar=g;});
 }
-function playStrum(time,chordName,eighthDur,type){
+function rnd(min,max){return min+Math.random()*(max-min);}
+function playStrum(time,chordName,eighthDur,type,accent){
   if(!guitar||!mCtx)return;
   let root,qual='maj';
   if(chordName.endsWith('dim')){root=chordName.slice(0,-3);qual='dim';}
   else if(chordName.endsWith('m')){root=chordName.slice(0,-1);qual='min';}
   else{root=chordName;}
   const midi=noteToMidi(root);
-  const intervals=CHORD_INT[qual];
-  // Build voicing: root + chord tones + octave root
-  const voicing=[midi,...intervals.map(iv=>midi+iv),midi+12];
-  const g=vol*0.35;
-  const dur=eighthDur*0.9;
+  // Pick random voicing variant
+  const vArr=VOICINGS[qual];
+  const voicing=vArr[Math.floor(Math.random()*vArr.length)].map(iv=>midi+iv);
+  const baseGain=vol*0.3*accent;
+  const dur=eighthDur*rnd(0.8,1.0);
+  const humanize=()=>rnd(-0.012,0.012); // ±12ms timing jitter
   if(type===1){
-    // Down strum: low to high, slight delay between notes
+    // Down strum: low to high
+    const strumSpeed=rnd(0.008,0.018); // vary strum speed
     voicing.forEach((m,i)=>{
-      const n=guitar.play(m,time+i*0.012,{duration:dur,gain:g});
+      const g=baseGain*rnd(0.85,1.15); // velocity variation
+      const t=time+i*strumSpeed+humanize();
+      const n=guitar.play(m,Math.max(t,time),{duration:dur,gain:g});
       if(n)backNodes.push(n);
     });
   }else if(type===2){
-    // Up strum: high to low, lighter
-    const rev=[...voicing].reverse();
+    // Up strum: high to low, lighter, fewer strings
+    const partial=voicing.slice(Math.floor(voicing.length*0.3));
+    const rev=[...partial].reverse();
+    const strumSpeed=rnd(0.006,0.014);
     rev.forEach((m,i)=>{
-      const n=guitar.play(m,time+i*0.01,{duration:dur*0.7,gain:g*0.7});
+      const g=baseGain*0.7*rnd(0.8,1.1);
+      const t=time+i*strumSpeed+humanize();
+      const n=guitar.play(m,Math.max(t,time),{duration:dur*0.65,gain:g});
       if(n)backNodes.push(n);
     });
   }
@@ -802,7 +820,6 @@ let curChordName='';
 function schedBacking(time,beat){
   if(!backingOn||selProg<0)return;
   if(!guitar){loadGuitar();return;}
-  // On beat 0, advance chord
   if(beat===0){
     const progs=selMode==='maj'?PROGS_MAJ:PROGS_MIN;
     const prog=progs[selProg];if(!prog)return;
@@ -812,17 +829,16 @@ function schedBacking(time,beat){
   }
   if(!curChordName)return;
   const eighth=60/bpm/2;
-  // Each beat = 2 eighth notes
   const beatInBar=beat%tsNum;
-  const e=beatInBar*2; // eighth-note index in pattern
-  // Play 2 eighth notes per beat
+  const e=beatInBar*2;
   if(e<STRUM8.length){
     const t1=STRUM8[e];
-    if(t1)playStrum(time,curChordName,eighth,t1);
+    if(t1)playStrum(time,curChordName,eighth,t1,STRUM_ACC[e]);
   }
   if(e+1<STRUM8.length){
     const t2=STRUM8[e+1];
-    if(t2)playStrum(time+eighth,curChordName,eighth,t2);
+    const swing=eighth*SWING; // delay upbeats for groove
+    if(t2)playStrum(time+eighth+swing,curChordName,eighth,t2,STRUM_ACC[e+1]);
   }
 }
 // ═══ Metronome ═══
