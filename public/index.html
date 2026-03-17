@@ -22,6 +22,7 @@
 <meta name="twitter:title" content="PickTone — Free Online Tuner & Metronome">
 <meta name="twitter:description" content="Free online chromatic tuner and metronome for musicians. Hardware-pedal-style UI with tap tempo and mute beats.">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{min-height:100vh;min-height:100dvh;background:#1a1a1a;font-family:'Chakra Petch',sans-serif;color:#c8c8c0;padding:10px;overflow-x:hidden}
@@ -658,63 +659,68 @@ function stopT(){tunerOn=false;if(tRaf)cancelAnimationFrame(tRaf);if(tStr)tStr.g
 
 // ═══ Backing Track ═══
 const CHORD_INT={maj:[0,4,7],min:[0,3,7],dim:[0,3,6]};
-let backNodes=[];
+let guitar=null,backNodes=[];
 function noteToMidi(noteName){return 48+NOTES.indexOf(noteName);} // C3 base
-function stopBacking(){backNodes.forEach(({osc,g})=>{try{g.gain.cancelScheduledValues(0);g.gain.setValueAtTime(0,mCtx.currentTime);osc.stop(mCtx.currentTime+0.02);}catch(e){}});backNodes=[];}
-function makeNote(freq,time,dur,v){
-  if(!mCtx)return;
-  // Main tone: triangle for warmth
-  const o1=mCtx.createOscillator(),g1=mCtx.createGain();
-  o1.type='triangle';o1.frequency.value=freq;
-  // Detuned layer: slight chorus
-  const o2=mCtx.createOscillator(),g2=mCtx.createGain();
-  o2.type='triangle';o2.frequency.value=freq*1.003;
-  // Octave harmonic
-  const o3=mCtx.createOscillator(),g3=mCtx.createGain();
-  o3.type='sine';o3.frequency.value=freq*2;
-  // Connect
-  o1.connect(g1);o2.connect(g2);o3.connect(g3);
-  g1.connect(mCtx.destination);g2.connect(mCtx.destination);g3.connect(mCtx.destination);
-  // Guitar-like envelope: sharp attack, natural decay
-  const peak=v,sus=v*0.5;
-  [g1,g2].forEach(g=>{
-    g.gain.setValueAtTime(0.001,time);
-    g.gain.linearRampToValueAtTime(peak,time+0.01);
-    g.gain.exponentialRampToValueAtTime(Math.max(sus,0.001),time+0.15);
-    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
-  });
-  // Octave harmonic quieter
-  g3.gain.setValueAtTime(0.001,time);
-  g3.gain.linearRampToValueAtTime(peak*0.15,time+0.01);
-  g3.gain.exponentialRampToValueAtTime(0.001,time+dur*0.6);
-  [o1,o2,o3].forEach(o=>{o.start(time);o.stop(time+dur+0.01);});
-  backNodes.push({osc:o1,g:g1},{osc:o2,g:g2},{osc:o3,g:g3});
-  o1.onended=()=>{backNodes=backNodes.filter(n=>n.osc!==o1&&n.osc!==o2&&n.osc!==o3);};
+function stopBacking(){backNodes.forEach(n=>{try{n.stop();}catch(e){}});backNodes=[];}
+// 8-beat strum pattern: ↓ ↓ ↓↑ ↓ ↓ ↓↑ (1=down, 2=up, 0=rest)
+const STRUM8=[1,1,1,2,1,1,1,2];
+function loadGuitar(){
+  if(guitar||!mCtx)return;
+  Soundfont.instrument(mCtx,'acoustic_guitar_steel',{soundfont:'MusyngKite',gain:0.6}).then(g=>{guitar=g;});
 }
-function playChord(time,chordName,dur){
-  if(!mCtx)return;
-  stopBacking();
+function playStrum(time,chordName,eighthDur,type){
+  if(!guitar||!mCtx)return;
   let root,qual='maj';
   if(chordName.endsWith('dim')){root=chordName.slice(0,-3);qual='dim';}
   else if(chordName.endsWith('m')){root=chordName.slice(0,-1);qual='min';}
   else{root=chordName;}
   const midi=noteToMidi(root);
   const intervals=CHORD_INT[qual];
-  const v=vol*0.1;
-  intervals.forEach(iv=>{
-    const freq=440*Math.pow(2,(midi+iv-69)/12);
-    makeNote(freq,time,dur,v);
-  });
+  // Build voicing: root + chord tones + octave root
+  const voicing=[midi,...intervals.map(iv=>midi+iv),midi+12];
+  const g=vol*0.35;
+  const dur=eighthDur*0.9;
+  if(type===1){
+    // Down strum: low to high, slight delay between notes
+    voicing.forEach((m,i)=>{
+      const n=guitar.play(m,time+i*0.012,{duration:dur,gain:g});
+      if(n)backNodes.push(n);
+    });
+  }else if(type===2){
+    // Up strum: high to low, lighter
+    const rev=[...voicing].reverse();
+    rev.forEach((m,i)=>{
+      const n=guitar.play(m,time+i*0.01,{duration:dur*0.7,gain:g*0.7});
+      if(n)backNodes.push(n);
+    });
+  }
 }
+let curChordName='';
 function schedBacking(time,beat){
-  if(!backingOn||selProg<0||beat!==0)return;
-  const progs=selMode==='maj'?PROGS_MAJ:PROGS_MIN;
-  const prog=progs[selProg];if(!prog)return;
-  const chords=getDiatonic(selKey,selMode);
-  const ci=prog.degs[backIdx%prog.degs.length];
-  const dur=tsNum*60/bpm;
-  playChord(time,chords[ci].name,dur);
-  backIdx=(backIdx+1)%prog.degs.length;
+  if(!backingOn||selProg<0)return;
+  if(!guitar){loadGuitar();return;}
+  // On beat 0, advance chord
+  if(beat===0){
+    const progs=selMode==='maj'?PROGS_MAJ:PROGS_MIN;
+    const prog=progs[selProg];if(!prog)return;
+    const chords=getDiatonic(selKey,selMode);
+    curChordName=chords[prog.degs[backIdx%prog.degs.length]].name;
+    backIdx=(backIdx+1)%prog.degs.length;
+  }
+  if(!curChordName)return;
+  const eighth=60/bpm/2;
+  // Each beat = 2 eighth notes
+  const beatInBar=beat%tsNum;
+  const e=beatInBar*2; // eighth-note index in pattern
+  // Play 2 eighth notes per beat
+  if(e<STRUM8.length){
+    const t1=STRUM8[e];
+    if(t1)playStrum(time,curChordName,eighth,t1);
+  }
+  if(e+1<STRUM8.length){
+    const t2=STRUM8[e+1];
+    if(t2)playStrum(time+eighth,curChordName,eighth,t2);
+  }
 }
 // ═══ Metronome ═══
 function click(time,beat){if(!mCtx||mutedBeats.has(beat))return;
@@ -724,7 +730,7 @@ function click(time,beat){if(!mCtx||mutedBeats.has(beat))return;
 function mSched(){if(!mPlay||!mCtx)return;
   while(mNext<mCtx.currentTime+0.15){click(mNext,mBeat);schedBacking(mNext,mBeat);aBeat=mBeat;uMet();mNext+=60/bpm;mBeat=(mBeat+1)%tsNum;}
   mTimer=setTimeout(mSched,20);}
-function startMet(){if(!mCtx)mCtx=new(window.AudioContext||window.webkitAudioContext)();if(mCtx.state==='suspended')mCtx.resume();mBeat=0;backIdx=0;mNext=mCtx.currentTime+0.05;mPlay=true;metOn=true;mSched();uMet();}
+function startMet(){if(!mCtx)mCtx=new(window.AudioContext||window.webkitAudioContext)();if(mCtx.state==='suspended')mCtx.resume();if(backingOn)loadGuitar();mBeat=0;backIdx=0;curChordName='';mNext=mCtx.currentTime+0.05;mPlay=true;metOn=true;mSched();uMet();}
 function stopMet(){mPlay=false;metOn=false;aBeat=-1;if(mTimer){clearTimeout(mTimer);mTimer=null;}stopBacking();uMet();}
 function togMet(){if(metOn)stopMet();else startMet();}
 function restartMet(){if(metOn){stopMet();startMet();}}
