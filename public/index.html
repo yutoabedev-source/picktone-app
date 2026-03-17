@@ -137,6 +137,19 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
   font-size:9.5px;color:#555;line-height:1.7;font-weight:500}
 .inline-help p{margin:0 0 4px}
 .inline-help em{color:#9a9a60;font-style:normal}
+/* Chord display */
+.chord-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.chord-chip{padding:5px 8px;border-radius:3px;font-size:11px;font-weight:700;font-family:'Orbitron',monospace;
+  background:#1a1a18;border:1px solid #333;color:#888;letter-spacing:.02em;text-align:center;min-width:36px}
+.chord-chip .deg{font-size:8px;color:#555;display:block;margin-top:2px;font-family:'Chakra Petch',sans-serif}
+.prog-row{display:flex;gap:4px;align-items:center;margin-bottom:6px;cursor:pointer;padding:6px 8px;border-radius:3px;
+  background:linear-gradient(180deg,#2a2a28,#242422);border:1px solid #333;transition:all .1s}
+.prog-row:hover{border-color:#555}
+.prog-row.sel{border-color:#6a6a20;background:linear-gradient(180deg,#333320,#2a2a18)}
+.prog-name{font-size:9px;color:#666;font-weight:700;letter-spacing:.06em;min-width:60px;flex-shrink:0}
+.prog-chords{font-size:12px;color:#999;font-weight:700;font-family:'Orbitron',monospace;letter-spacing:.04em}
+.prog-row.sel .prog-chords{color:#d4e84e}
+
 /* Key grid */
 .key-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
 .key-btn{padding:8px 0;border-radius:3px;font-size:13px;font-weight:700;text-align:center;
@@ -277,6 +290,16 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
       <button class="sm-btn sel" id="majBtn">MAJOR</button>
       <button class="sm-btn" id="minBtn">MINOR</button>
     </div>
+    <!-- Diatonic Chords -->
+    <div class="sub-section" style="margin-top:12px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="cLbl">DIATONIC CHORDS</span></div>
+      <div class="chord-row" id="chordRow"></div>
+    </div>
+    <!-- Chord Progressions -->
+    <div class="sub-section" style="margin-top:10px;padding-top:10px;border-top:1px solid #2a2a28">
+      <div class="slbl" style="margin-bottom:6px"><span id="pLbl">PROGRESSIONS</span></div>
+      <div id="progList"></div>
+    </div>
     <div class="inline-help pc-only" id="keyHelp"></div>
   </div>
 
@@ -308,9 +331,11 @@ const presets=[[2,4],[3,4],[4,4],[5,4],[6,8],[7,8]];
 // ═══ i18n ═══
 const TT={
   en:{tuner:'TUNER',met:'METRONOME',key:'KEY / SCALE',start:'START',stop:'STOP',tap:'TAP',
-      muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR'},
+      muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR',
+      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS'},
   ja:{tuner:'チューナー',met:'メトロノーム',key:'キー / スケール',start:'スタート',stop:'ストップ',tap:'タップ',
-      muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー'}
+      muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー',
+      diatonic:'ダイアトニックコード',prog:'コード進行'}
 };
 const t=()=>TT[lang];
 
@@ -456,6 +481,55 @@ function uKey(){
   $('kMode').textContent=selMode==='maj'?'maj':'min';
   $('kInf').textContent=notes.join('  ');
   $('kDot').className='led g';
+  uChords();
+}
+// ═══ Diatonic Chords & Progressions ═══
+const MAJ_CHORD_Q=[0,0,1,0,0,1,2]; // 0=maj,1=min,2=dim
+const MIN_CHORD_Q=[1,2,0,1,1,0,0];
+const MAJ_DEGS=['I','ii','iii','IV','V','vi','vii°'];
+const MIN_DEGS=['i','ii°','III','iv','v','VI','VII'];
+const PROGS_MAJ=[
+  {name:'Pop / Rock',degs:[0,3,4,0],label:'I – IV – V – I'},
+  {name:'Axis',degs:[0,4,5,3],label:'I – V – vi – IV'},
+  {name:'50s',degs:[0,5,3,4],label:'I – vi – IV – V'},
+  {name:'Canon',degs:[0,4,5,2],label:'I – V – vi – iii'},
+  {name:'Blues',degs:[0,0,0,0,3,3,0,0,4,3,0,4],label:'I – I – I – I – IV – IV – I – I – V – IV – I – V'},
+];
+const PROGS_MIN=[
+  {name:'Pop Minor',degs:[0,5,6,4],label:'i – VI – VII – v'},
+  {name:'Andalusian',degs:[0,6,5,4],label:'i – VII – VI – V'},
+  {name:'Sad',degs:[0,3,5,6],label:'i – iv – VI – VII'},
+  {name:'Minor Blues',degs:[0,0,0,0,3,3,0,0,4,3,0,4],label:'i – i – i – i – iv – iv – i – i – v – iv – i – v'},
+];
+let selProg=-1;
+function getDiatonic(root,mode){
+  const steps=mode==='maj'?MAJ_STEPS:MIN_STEPS;
+  const quals=mode==='maj'?MAJ_CHORD_Q:MIN_CHORD_Q;
+  const degs=mode==='maj'?MAJ_DEGS:MIN_DEGS;
+  return steps.map((s,i)=>{
+    const note=NOTES[(root+s)%12];
+    const q=quals[i];
+    const suffix=q===1?'m':q===2?'dim':'';
+    return{name:note+suffix,deg:degs[i]};
+  });
+}
+function uChords(){
+  const chords=getDiatonic(selKey,selMode);
+  let ch='';
+  chords.forEach(c=>{
+    ch+=`<div class="chord-chip"><span>${c.name}</span><span class="deg">${c.deg}</span></div>`;
+  });
+  $('chordRow').innerHTML=ch;
+  const progs=selMode==='maj'?PROGS_MAJ:PROGS_MIN;
+  let ph='';
+  progs.forEach((p,i)=>{
+    const chordNames=p.degs.map(d=>chords[d].name).join(' – ');
+    ph+=`<div class="prog-row${selProg===i?' sel':''}" data-pi="${i}">
+      <span class="prog-name">${p.name}</span><span class="prog-chords">${chordNames}</span></div>`;
+  });
+  $('progList').innerHTML=ph;
+  $('cLbl').textContent=t().diatonic;
+  $('pLbl').textContent=t().prog;
 }
 
 function uLang(){
@@ -500,9 +574,10 @@ $('tsRow').addEventListener('click',e=>{const b=e.target;if(b.dataset.pn){tsNum=
 $('btsRow').addEventListener('click',e=>{const bd=e.target.closest('.bd');if(!bd)return;const i=+bd.dataset.bi;if(mutedBeats.has(i))mutedBeats.delete(i);else mutedBeats.add(i);uMet();});
 
 // ═══ Key Events ═══
-$('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;uKey();savePrefs();});
+$('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;selProg=-1;uKey();savePrefs();});
 $('majBtn').onclick=()=>{selMode='maj';uKey();savePrefs();};
-$('minBtn').onclick=()=>{selMode='min';uKey();savePrefs();};
+$('minBtn').onclick=()=>{selMode='min';selProg=-1;uKey();savePrefs();};
+$('progList').addEventListener('click',e=>{const r=e.target.closest('.prog-row');if(!r)return;const i=+r.dataset.pi;selProg=selProg===i?-1:i;uChords();});
 
 // ═══ Panel Swap ═══
 function applyOrder(){const w=$('panelsWrap'),tp=$('tunerPanel'),mp=$('metPanel');if(metFirst)w.insertBefore(mp,w.firstChild);else w.insertBefore(tp,w.firstChild);}
