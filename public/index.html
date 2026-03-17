@@ -175,14 +175,6 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
 .fb-dot.in{background:#3a3a30;color:#999}
 .fb-dot.root{background:#6a6a20;color:#d4e84e;box-shadow:0 0 4px #d4e84e44}
 .scale-mode-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-.fb-dot.lick{background:#4e6ae8;color:#fff;box-shadow:0 0 6px #4e6ae844;font-size:8px}
-.fb-dot.lick-root{background:#e8a84e;color:#fff;box-shadow:0 0 6px #e8a84e44;font-size:8px}
-.lick-row{display:flex;gap:4px;align-items:center;margin-bottom:4px;cursor:pointer;padding:5px 8px;border-radius:3px;
-  background:linear-gradient(180deg,#2a2a28,#242422);border:1px solid #333;transition:all .1s;font-size:10px;color:#777}
-.lick-row:hover{border-color:#555}
-.lick-row.sel{border-color:#4e6ae8;color:#99aaee;background:linear-gradient(180deg,#282838,#222230)}
-.lick-play{background:none;border:none;color:#555;font-size:13px;cursor:pointer;padding:0 4px;flex-shrink:0;transition:color .1s}
-.lick-row.sel .lick-play{color:#4e6ae8}
 
 /* Key grid */
 .key-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
@@ -294,8 +286,6 @@ input[type=number]:focus{outline:none;border-color:#d4e84e}
         <button class="sm-btn" data-sm="minPenta">m PENTA</button>
       </div>
       <div class="fretboard" id="fretboard"></div>
-      <div class="slbl" style="margin:10px 0 6px"><span id="lkLbl">LICKS</span></div>
-      <div id="lickList"></div>
     </div>
     <div class="inline-help pc-only" id="keyHelp"></div>
   </div>
@@ -379,10 +369,10 @@ const presets=[[2,4],[3,4],[4,4],[5,4],[6,8],[7,8]];
 const TT={
   en:{tuner:'TUNER',met:'METRONOME',key:'KEY / SCALE',start:'START',stop:'STOP',tap:'TAP',
       muteTip:'Tap a beat to mute/unmute',vol:'VOL',major:'MAJOR',minor:'MINOR',
-      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS',out:'OUT',fretboard:'FRETBOARD',licks:'LICKS'},
+      diatonic:'DIATONIC CHORDS',prog:'PROGRESSIONS',out:'OUT',fretboard:'FRETBOARD'},
   ja:{tuner:'チューナー',met:'メトロノーム',key:'キー / スケール',start:'スタート',stop:'ストップ',tap:'タップ',
       muteTip:'各拍タップでミュート切替',vol:'音量',major:'メジャー',minor:'マイナー',
-      diatonic:'ダイアトニックコード',prog:'コード進行',out:'スケール外',fretboard:'指板',licks:'リック'}
+      diatonic:'ダイアトニックコード',prog:'コード進行',out:'スケール外',fretboard:'指板'}
 };
 const t=()=>TT[lang];
 
@@ -590,102 +580,10 @@ function uFretboard(){
   }
   html+='</table>';
   $('fretboard').innerHTML=html;
-  // Overlay lick notes if selected
-  if(selLick>=0){
-    const licks=LICKS[scaleMode];
-    if(licks&&licks[selLick]){
-      const lick=licks[selLick];
-      const table=$('fretboard').querySelector('table');
-      const rows=table.querySelectorAll('tr');
-      lick.notes.forEach((iv,seq)=>{
-        const midi=48+NOTES.indexOf(NOTES[selKey])+iv; // C3-based + root offset + interval
-        const pos=midiToFret(midi);
-        if(!pos)return;
-        // rows: [header, s=5, s=4, s=3, s=2, s=1, s=0]
-        const rowIdx=6-pos.s;
-        const cell=rows[rowIdx]?.querySelectorAll('td')[pos.f+1];
-        if(cell){
-          const isRoot=iv===0||iv===12||iv===24;
-          cell.innerHTML=`<span class="fb-dot ${isRoot?'lick-root':'lick'}">${seq+1}</span>`;
-        }
-      });
-    }
-  }
   // Update mode buttons
   $('scaleModeRow').querySelectorAll('.sm-btn').forEach(b=>{
     b.className='sm-btn'+(b.dataset.sm===scaleMode?' sel':'');
   });
-  uLicks();
-}
-// ═══ Licks ═══
-const LICKS={
-  maj:[
-    {name:'Ascending Run',notes:[0,2,4,5,7,9,11,12]},
-    {name:'Sequence 1-2-3',notes:[0,2,4,2,4,5,4,5,7,5,7,9]},
-    {name:'Triad Arpeggio',notes:[0,4,7,12,7,4,0]},
-    {name:'Country Bend',notes:[0,2,4,7,9,7,4,2,0]},
-  ],
-  min:[
-    {name:'Minor Run',notes:[0,2,3,5,7,8,10,12]},
-    {name:'Melodic',notes:[0,3,7,5,3,2,0]},
-    {name:'Aeolian Seq',notes:[0,2,3,2,3,5,3,5,7,5,7,8]},
-    {name:'Dark Arpeggio',notes:[0,3,7,12,7,3,0]},
-  ],
-  penta:[
-    {name:'Rock Run',notes:[0,2,4,7,9,12,9,7,4,2,0]},
-    {name:'Country Lick',notes:[9,7,4,2,0,2,4]},
-    {name:'Double Stop',notes:[0,4,2,7,4,9,7,12]},
-  ],
-  minPenta:[
-    {name:'Blues Box',notes:[0,3,5,7,10,12,10,7,5,3,0]},
-    {name:'BB King',notes:[3,5,3,0,-2,0,3,5]},
-    {name:'Hendrix Lick',notes:[0,3,5,6,5,3,0]},
-    {name:'Call & Response',notes:[0,3,5,3,0,7,10,12,10,7]},
-  ]
-};
-let selLick=-1,lickPlaying=false;
-function midiToFret(midi){
-  // Find best fret position (prefer middle frets, avoid open strings for licks)
-  let best=null,bestScore=99;
-  for(let s=0;s<6;s++){
-    const f=midi-TUNING[s];
-    if(f>=0&&f<=FRET_COUNT){
-      const score=Math.abs(f-5)+Math.abs(s-2); // prefer mid frets, mid strings
-      if(score<bestScore){bestScore=score;best={s,f};}
-    }
-  }
-  return best;
-}
-function uLicks(){
-  const licks=LICKS[scaleMode];
-  if(!licks){$('lickList').innerHTML='';return;}
-  let h='';
-  licks.forEach((l,i)=>{
-    h+=`<div class="lick-row${selLick===i?' sel':''}" data-li="${i}">
-      <button class="lick-play" data-lp="${i}">▶</button>
-      <span>${l.name}</span></div>`;
-  });
-  $('lickList').innerHTML=h;
-}
-async function playLick(idx){
-  const licks=LICKS[scaleMode];
-  if(!licks||!licks[idx])return;
-  if(!mCtx)mCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(mCtx.state==='suspended')mCtx.resume();
-  if(!guitar)await Soundfont.instrument(mCtx,'acoustic_guitar_steel',{soundfont:'MusyngKite',gain:0.8}).then(g=>{guitar=g;});
-  if(!guitar)return;
-  lickPlaying=true;
-  const lick=licks[idx];
-  const rootMidi=48+NOTES.indexOf(NOTES[selKey]);
-  const beatDur=60/Math.max(bpm,60);
-  const noteDur=beatDur*0.45;
-  for(let i=0;i<lick.notes.length;i++){
-    if(!lickPlaying)break;
-    const midi=rootMidi+lick.notes[i];
-    guitar.play(midi,0,{duration:noteDur,gain:vol*0.5});
-    await new Promise(r=>setTimeout(r,noteDur*1000));
-  }
-  lickPlaying=false;
 }
 // ═══ Diatonic Chords & Progressions ═══
 const MAJ_CHORD_Q=[0,0,1,0,0,1,2]; // 0=maj,1=min,2=dim
@@ -739,7 +637,6 @@ function uChords(){
   $('cLbl').textContent=t().diatonic;
   $('pLbl').textContent=t().prog;
   $('fbLbl').textContent=t().fretboard;
-  $('lkLbl').textContent=t().licks;
 }
 
 function uLang(){
@@ -868,14 +765,7 @@ $('btsRow').addEventListener('click',e=>{const bd=e.target.closest('.bd');if(!bd
 $('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;selProg=-1;if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();});
 $('majBtn').onclick=()=>{selMode='maj';if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();};
 $('minBtn').onclick=()=>{selMode='min';selProg=-1;if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();};
-$('scaleModeRow').addEventListener('click',e=>{const b=e.target.closest('.sm-btn');if(!b)return;scaleMode=b.dataset.sm;selLick=-1;lickPlaying=false;uFretboard();});
-$('lickList').addEventListener('click',e=>{
-  const pb=e.target.closest('.lick-play');
-  const r=e.target.closest('.lick-row');if(!r)return;
-  const i=+r.dataset.li;
-  if(pb){playLick(i);return;}
-  selLick=selLick===i?-1:i;lickPlaying=false;uFretboard();
-});
+$('scaleModeRow').addEventListener('click',e=>{const b=e.target.closest('.sm-btn');if(!b)return;scaleMode=b.dataset.sm;uFretboard();});
 $('progList').addEventListener('click',e=>{
   const pb=e.target.closest('.prog-play');
   const r=e.target.closest('.prog-row');if(!r)return;
