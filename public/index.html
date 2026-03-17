@@ -658,10 +658,12 @@ function stopT(){tunerOn=false;if(tRaf)cancelAnimationFrame(tRaf);if(tStr)tStr.g
 
 // ═══ Backing Track ═══
 const CHORD_INT={maj:[0,4,7],min:[0,3,7],dim:[0,3,6]};
+let backNodes=[];
 function noteToMidi(noteName){return 48+NOTES.indexOf(noteName);} // C3 base
+function stopBacking(){backNodes.forEach(({osc,g})=>{try{g.gain.cancelScheduledValues(0);g.gain.setValueAtTime(0,mCtx.currentTime);osc.stop(mCtx.currentTime+0.02);}catch(e){}});backNodes=[];}
 function playChord(time,chordName,dur){
   if(!mCtx)return;
-  // Parse chord name: e.g. "Am" -> root=A, quality=min; "Bdim" -> root=B, quality=dim; "C" -> root=C, quality=maj
+  stopBacking();
   let root,qual='maj';
   if(chordName.endsWith('dim')){root=chordName.slice(0,-3);qual='dim';}
   else if(chordName.endsWith('m')){root=chordName.slice(0,-1);qual='min';}
@@ -679,6 +681,8 @@ function playChord(time,chordName,dur){
     g.gain.setValueAtTime(v,time+dur-0.1);
     g.gain.linearRampToValueAtTime(0.001,time+dur);
     osc.start(time);osc.stop(time+dur+0.01);
+    backNodes.push({osc,g});
+    osc.onended=()=>{backNodes=backNodes.filter(n=>n.osc!==osc);};
   });
 }
 function schedBacking(time,beat){
@@ -700,7 +704,7 @@ function mSched(){if(!mPlay||!mCtx)return;
   while(mNext<mCtx.currentTime+0.15){click(mNext,mBeat);schedBacking(mNext,mBeat);aBeat=mBeat;uMet();mNext+=60/bpm;mBeat=(mBeat+1)%tsNum;}
   mTimer=setTimeout(mSched,20);}
 function startMet(){if(!mCtx)mCtx=new(window.AudioContext||window.webkitAudioContext)();if(mCtx.state==='suspended')mCtx.resume();mBeat=0;backIdx=0;mNext=mCtx.currentTime+0.05;mPlay=true;metOn=true;mSched();uMet();}
-function stopMet(){mPlay=false;metOn=false;aBeat=-1;if(mTimer){clearTimeout(mTimer);mTimer=null;}uMet();}
+function stopMet(){mPlay=false;metOn=false;aBeat=-1;if(mTimer){clearTimeout(mTimer);mTimer=null;}stopBacking();uMet();}
 function togMet(){if(metOn)stopMet();else startMet();}
 function restartMet(){if(metOn){stopMet();startMet();}}
 
@@ -714,9 +718,9 @@ $('tsRow').addEventListener('click',e=>{const b=e.target;if(b.dataset.pn){tsNum=
 $('btsRow').addEventListener('click',e=>{const bd=e.target.closest('.bd');if(!bd)return;const i=+bd.dataset.bi;if(mutedBeats.has(i))mutedBeats.delete(i);else mutedBeats.add(i);uMet();});
 
 // ═══ Key Events ═══
-$('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;selProg=-1;uKey();savePrefs();});
-$('majBtn').onclick=()=>{selMode='maj';uKey();savePrefs();};
-$('minBtn').onclick=()=>{selMode='min';selProg=-1;uKey();savePrefs();};
+$('keyGrid').addEventListener('click',e=>{const b=e.target.closest('.key-btn');if(!b)return;selKey=+b.dataset.ki;selProg=-1;if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();});
+$('majBtn').onclick=()=>{selMode='maj';if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();};
+$('minBtn').onclick=()=>{selMode='min';selProg=-1;if(backingOn){backingOn=false;stopMet();}uKey();savePrefs();};
 $('scaleModeRow').addEventListener('click',e=>{const b=e.target.closest('.sm-btn');if(!b)return;scaleMode=b.dataset.sm;uFretboard();});
 $('progList').addEventListener('click',e=>{
   const pb=e.target.closest('.prog-play');
