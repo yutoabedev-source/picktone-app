@@ -744,7 +744,12 @@ $('swapBtn').onclick=()=>{metFirst=!metFirst;applyOrder();savePrefs();};
 
 // ═══ Save on changes ═══
 $('langBtn').onclick=()=>{lang=lang==='en'?'ja':'en';uLang();savePrefs();};
-$('bpmSl').oninput=e=>{bpm=+e.target.value;$('bpmIn').value=bpm;restartMet();savePrefs();};
+let bpmWasPlaying=false;
+$('bpmSl').addEventListener('mousedown',()=>{bpmWasPlaying=metOn;if(metOn)stopMet();});
+$('bpmSl').addEventListener('touchstart',()=>{bpmWasPlaying=metOn;if(metOn)stopMet();},{passive:true});
+$('bpmSl').oninput=e=>{bpm=+e.target.value;$('bpmIn').value=bpm;uMet();};
+$('bpmSl').addEventListener('mouseup',()=>{if(bpmWasPlaying)startMet();savePrefs();});
+$('bpmSl').addEventListener('touchend',()=>{if(bpmWasPlaying)startMet();savePrefs();});
 $('bpmIn').onchange=e=>{let v=Math.max(20,Math.min(300,+e.target.value));bpm=v;$('bpmSl').value=v;restartMet();uMet();savePrefs();};
 $('refHz').onchange=e=>{refHz=Math.max(420,Math.min(460,+e.target.value));$('refHz').value=refHz;savePrefs();};
 $('volSl').oninput=e=>{vol=+e.target.value/100;$('volVal').textContent=Math.round(vol*100);savePrefs();};
